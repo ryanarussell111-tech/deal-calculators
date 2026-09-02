@@ -1,10 +1,12 @@
 import { useState } from "react";
 import RentalCalculator from "./RentalCalculator";
 import BrrrrCalculator from "./BrrrrCalculator";
+import HouseHackCalculator from "./HouseHackCalculator";
 
 const TABS = [
   { key: "rental", label: "🏠 Rental Cash Flow", blurb: "Buy-and-hold cash flow, cap rate, and cash-on-cash return." },
   { key: "brrrr", label: "🔄 BRRRR", blurb: "Buy, rehab, rent, refinance — how much cash comes back out." },
+  { key: "househack", label: "🚪 House Hacking", blurb: "Live in one unit, rent the rest — what it actually costs you to live there." },
 ];
 
 export default function App() {
@@ -36,6 +38,7 @@ export default function App() {
       <div style={{ padding: "0 16px", maxWidth: 1400, margin: "0 auto" }}>
         {view === "rental" && <RentalCalculator />}
         {view === "brrrr" && <BrrrrCalculator />}
+        {view === "househack" && <HouseHackCalculator />}
       </div>
     </div>
   );

@@ -26,6 +26,34 @@ test('BRRRR tab shows the calculator with computed outputs', () => {
   expect(screen.getAllByText('$15,900').length).toBeGreaterThan(0);
 });
 
+test('house hacking tab shows the calculator with computed outputs', () => {
+  render(<App />);
+  fireEvent.click(screen.getByText('🚪 House Hacking'));
+  expect(screen.getByText('Your Effective Monthly Housing Cost')).toBeInTheDocument();
+  expect(screen.getByText('Monthly Savings vs Renting')).toBeInTheDocument();
+  expect(screen.getByText('Rent Roll')).toBeInTheDocument();
+  // Defaults are the duplex example: $1,129.39 effective cost, $370.61 saved
+  expect(screen.getAllByText('$1,129.39').length).toBeGreaterThan(0);
+  expect(screen.getByText('$370.61')).toBeInTheDocument();
+  // $300k x 5% down + 3% closing
+  expect(screen.getByText('$24,000')).toBeInTheDocument();
+});
+
+test('house hacking unit count adds rent rows', () => {
+  render(<App />);
+  fireEvent.click(screen.getByText('🚪 House Hacking'));
+  // "Unit N" appears in both the unit picker and the rent roll, so count rather
+  // than expecting a single match.
+  expect(screen.queryAllByText('Unit 1').length).toBeGreaterThan(0);
+  expect(screen.queryAllByText('Unit 2').length).toBeGreaterThan(0);
+  expect(screen.queryAllByText('Unit 3')).toHaveLength(0);
+
+  // Switch to a fourplex via the unit-count control
+  fireEvent.click(screen.getByRole('button', { name: '4' }));
+  expect(screen.queryAllByText('Unit 3').length).toBeGreaterThan(0);
+  expect(screen.queryAllByText('Unit 4').length).toBeGreaterThan(0);
+});
+
 test('no sourcing / FBA functionality is bundled', () => {
   render(<App />);
   expect(screen.queryByText(/Sourcing/i)).not.toBeInTheDocument();
