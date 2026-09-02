@@ -104,6 +104,72 @@ describe("calculateRentalCashFlow — example deal (hand-verified)", () => {
   });
 });
 
+describe("calculateRentalCashFlow — points", () => {
+  // Same $100k deal as the hand-verified example above.
+  const base = {
+    purchasePrice: 100000,
+    downPayment: 20,
+    downPaymentMode: "percent",
+    interestRate: 6,
+    loanTermYears: 30,
+    closingCosts: 3,
+    closingCostsMode: "percent",
+    rehabCosts: 5000,
+    monthlyRent: 1200,
+    vacancyRate: 5,
+    propertyTaxesAnnual: 1800,
+    insuranceAnnual: 1200,
+    managementRate: 10,
+    maintenanceRate: 10,
+    rentGrowthRate: 0,
+  };
+  const withPoints = Object.assign({}, base, { points: 2 });
+
+  test("points cost is a percentage of the loan, not the purchase price", () => {
+    const r = calculateRentalCashFlow(withPoints);
+    expect(r.loanAmount).toBe(80000);
+    expect(r.pointsRate).toBeCloseTo(0.02, 10);
+    expect(r.pointsCost).toBeCloseTo(1600, 10); // 2% of 80,000, not of 100,000
+  });
+
+  test("points raise cash to close and therefore lower cash-on-cash", () => {
+    const without = calculateRentalCashFlow(base);
+    const r = calculateRentalCashFlow(withPoints);
+    // 20,000 down + 3,000 closing + 5,000 rehab + 1,600 points
+    expect(r.totalCashInvested).toBeCloseTo(29600, 10);
+    expect(r.totalCashInvested).toBeCloseTo(without.totalCashInvested + 1600, 10);
+    expect(r.cashOnCashReturn).toBeCloseTo(0.069065, 5);
+    expect(r.cashOnCashReturn).toBeLessThan(without.cashOnCashReturn);
+  });
+
+  test("points are an upfront cost, so monthly figures are untouched", () => {
+    const without = calculateRentalCashFlow(base);
+    const r = calculateRentalCashFlow(withPoints);
+    expect(r.mortgageMonthly).toBeCloseTo(without.mortgageMonthly, 10);
+    expect(r.monthlyCashFlow).toBeCloseTo(without.monthlyCashFlow, 10);
+    expect(r.totalMonthlyExpenses).toBeCloseTo(without.totalMonthlyExpenses, 10);
+    expect(r.noiAnnual).toBeCloseTo(without.noiAnnual, 10);
+    expect(r.capRate).toBeCloseTo(without.capRate, 10);
+  });
+
+  test("omitting points behaves exactly as before", () => {
+    const r = calculateRentalCashFlow(base);
+    expect(r.pointsCost).toBe(0);
+    expect(r.pointsRate).toBe(0);
+    expect(r.totalCashInvested).toBe(28000);
+  });
+
+  test("an all-cash purchase has no loan, so points cost nothing", () => {
+    const r = calculateRentalCashFlow(Object.assign({}, base, {
+      downPayment: 100,
+      downPaymentMode: "percent",
+      points: 3,
+    }));
+    expect(r.loanAmount).toBe(0);
+    expect(r.pointsCost).toBe(0);
+  });
+});
+
 describe("calculateRentalCashFlow — variants", () => {
   test("dollar-mode down payment and closing costs", () => {
     const r = calculateRentalCashFlow({

@@ -3,17 +3,33 @@ import RentalCalculator from "./RentalCalculator";
 import BrrrrCalculator from "./BrrrrCalculator";
 import HouseHackCalculator from "./HouseHackCalculator";
 import FixAndFlipCalculator from "./FixAndFlipCalculator";
+import SavedDeals from "./SavedDeals";
 
 const TABS = [
   { key: "rental", label: "🏠 Rental Cash Flow", blurb: "Buy-and-hold cash flow, cap rate, and cash-on-cash return." },
   { key: "brrrr", label: "🔄 BRRRR", blurb: "Buy, rehab, rent, refinance — how much cash comes back out." },
   { key: "househack", label: "🚪 House Hacking", blurb: "Live in one unit, rent the rest — what it actually costs you to live there." },
   { key: "flip", label: "🔨 Fix & Flip", blurb: "Buy, renovate, resell — profit, ROI, and the 70% rule check." },
+  { key: "saved", label: "💾 Saved Deals", blurb: "Deals you've saved in this browser. Open one to load its numbers back in." },
 ];
 
 export default function App() {
   const [view, setView] = useState("rental");
+  // A load request carries the deal plus a nonce, so re-opening the same deal
+  // still remounts the calculator and resets any unsaved edits.
+  const [loadRequest, setLoadRequest] = useState(null);
   const active = TABS.find(function (t) { return t.key === view; });
+
+  function handleOpenDeal(deal) {
+    const type = deal.calculatorType || "rental";
+    // Only the rental calculator supports saving today; ignore anything else
+    // rather than switching to a tab that can't show it.
+    if (type !== "rental") return;
+    setLoadRequest({ deal, nonce: Date.now() });
+    setView(type);
+  }
+
+  const rentalKey = loadRequest ? "rental-" + loadRequest.deal.id + "-" + loadRequest.nonce : "rental-new";
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a10", color: "#ddd", fontFamily: "system-ui, sans-serif", paddingBottom: 40 }}>
@@ -38,10 +54,13 @@ export default function App() {
       </div>
 
       <div style={{ padding: "0 16px", maxWidth: 1400, margin: "0 auto" }}>
-        {view === "rental" && <RentalCalculator />}
+        {view === "rental" && (
+          <RentalCalculator key={rentalKey} loadedDeal={loadRequest ? loadRequest.deal : undefined} />
+        )}
         {view === "brrrr" && <BrrrrCalculator />}
         {view === "househack" && <HouseHackCalculator />}
         {view === "flip" && <FixAndFlipCalculator />}
+        {view === "saved" && <SavedDeals onOpen={handleOpenDeal} />}
       </div>
     </div>
   );

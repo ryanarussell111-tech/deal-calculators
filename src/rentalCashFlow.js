@@ -23,6 +23,7 @@ export function resolveAmount(value, mode, purchasePrice) {
  * @param {"percent"|"dollar"} [inputs.downPaymentMode="percent"]
  * @param {number} inputs.interestRate           annual %, e.g. 6.5
  * @param {number} inputs.loanTermYears
+ * @param {number} [inputs.points=0]             % of the loan, paid upfront at closing
  * @param {number} [inputs.closingCosts=0]       value in $ or % per closingCostsMode
  * @param {"percent"|"dollar"} [inputs.closingCostsMode="percent"]
  * @param {number} [inputs.rehabCosts=0]
@@ -58,6 +59,11 @@ export function calculateRentalCashFlow(inputs) {
     Number(inputs.loanTermYears) || 0
   );
 
+  // Points are a percentage of the loan paid upfront, so they are part of the
+  // cash needed at closing but never part of the monthly payment.
+  const pointsRate = (Number(inputs.points) || 0) / 100;
+  const pointsCost = loanAmount * pointsRate;
+
   // Fixed monthly operating costs don't scale with rent; % based ones do.
   const fixedOpexMonthly = taxesMonthly + insuranceMonthly + hoaMonthly + utilitiesMonthly;
   const cashFlowForRent = (rent) => {
@@ -77,7 +83,7 @@ export function calculateRentalCashFlow(inputs) {
   const noiAnnual = (grossMonthlyIncome - operatingExpensesMonthly) * 12;
   const capRate = purchasePrice > 0 ? noiAnnual / purchasePrice : 0;
 
-  const totalCashInvested = downPayment + closingCosts + rehabCosts;
+  const totalCashInvested = downPayment + closingCosts + rehabCosts + pointsCost;
   const cashOnCashReturn = totalCashInvested > 0 ? annualCashFlow / totalCashInvested : 0;
 
   // Year-by-year projection: rent compounds annually; taxes, insurance, HOA,
@@ -96,6 +102,8 @@ export function calculateRentalCashFlow(inputs) {
     downPayment,
     closingCosts,
     rehabCosts,
+    pointsRate,
+    pointsCost,
     mortgageMonthly,
     grossMonthlyIncome,
     taxesMonthly,

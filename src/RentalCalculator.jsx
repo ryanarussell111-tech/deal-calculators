@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { calculateRentalCashFlow } from "./rentalCashFlow";
-import { fmtMoney, fmtPct, Field, Section, ResultBox, ExpenseRow, useCalcInputs } from "./calcUI";
+import { saveDeal } from "./dealStorage";
+import { fmtMoney, fmtPct, Field, Section, ResultBox, ExpenseRow, Button, TextField, useCalcInputs } from "./calcUI";
 
-const DEFAULTS = {
+export const RENTAL_DEFAULTS = {
   purchasePrice: "200000",
   downPayment: "20",
   downPaymentMode: "percent",
   interestRate: "6.5",
   loanTermYears: "30",
+  points: "0",
   closingCosts: "3",
   closingCostsMode: "percent",
   rehabCosts: "0",
@@ -22,14 +24,54 @@ const DEFAULTS = {
   rentGrowthRate: "3",
 };
 
-export default function RentalCalculator() {
-  const [inputs, set] = useCalcInputs(DEFAULTS);
+/**
+ * @param {object} [props.loadedDeal]  a saved deal to open, or undefined for a blank form
+ * @param {function} [props.onSaved]   called after a successful save
+ */
+export default function RentalCalculator({ loadedDeal, onSaved }) {
+  const [inputs, set] = useCalcInputs(
+    loadedDeal ? Object.assign({}, RENTAL_DEFAULTS, loadedDeal.inputs) : RENTAL_DEFAULTS
+  );
   const [useGrowth, setUseGrowth] = useState(false);
+  const [dealName, setDealName] = useState(loadedDeal ? loadedDeal.name : "");
+  const [dealId, setDealId] = useState(loadedDeal ? loadedDeal.id : null);
+  const [saveState, setSaveState] = useState(null); // {kind: "ok"|"error", message}
+  const [namePrompted, setNamePrompted] = useState(false);
 
   const r = calculateRentalCashFlow(Object.assign({}, inputs, { rentGrowthRate: useGrowth ? inputs.rentGrowthRate : 0 }));
   const cfColor = r.monthlyCashFlow >= 0 ? "#00ff88" : "#f87171";
   const year1 = r.projection[0];
   const year5 = r.projection[4];
+
+  async function handleSave() {
+    // Ask for a name before the first save rather than storing "Untitled".
+    if (!dealName.trim()) {
+      setNamePrompted(true);
+      setSaveState({ kind: "error", message: "Give this deal a name first — an address or nickname." });
+      return;
+    }
+    try {
+      const saved = await saveDeal({
+        id: dealId || undefined,
+        name: dealName,
+        calculatorType: "rental",
+        inputs,
+        summary: {
+          monthlyCashFlow: r.monthlyCashFlow,
+          capRate: r.capRate,
+          cashOnCashReturn: r.cashOnCashReturn,
+          totalCashInvested: r.totalCashInvested,
+        },
+      });
+      setDealId(saved.id);
+      setSaveState({ kind: "ok", message: "Saved “" + saved.name + "”" });
+      if (onSaved) onSaved(saved);
+    } catch (err) {
+      setSaveState({ kind: "error", message: err.message || "Could not save this deal" });
+    }
+  }
+
+  const showNameField = namePrompted || !!dealName || !!dealId;
 
   return (
     <div style={{ padding: "16px 0" }}>
@@ -38,6 +80,7 @@ export default function RentalCalculator() {
         <Field label="Down Payment" value={inputs.downPayment} onChange={set("downPayment")} mode={inputs.downPaymentMode} onModeChange={set("downPaymentMode")} />
         <Field label="Interest Rate %" value={inputs.interestRate} onChange={set("interestRate")} />
         <Field label="Loan Term (yrs)" value={inputs.loanTermYears} onChange={set("loanTermYears")} />
+        <Field label="Points Charged %" value={inputs.points} onChange={set("points")} />
         <Field label="Closing Costs" value={inputs.closingCosts} onChange={set("closingCosts")} mode={inputs.closingCostsMode} onModeChange={set("closingCostsMode")} />
         <Field label="Rehab / Repairs $" value={inputs.rehabCosts} onChange={set("rehabCosts")} />
       </Section>
@@ -66,6 +109,31 @@ export default function RentalCalculator() {
         <ResultBox label="Annual NOI" value={fmtMoney(r.noiAnnual)} color="#aaa" />
       </div>
 
+      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          {showNameField && (
+            <TextField
+              label="Deal Name"
+              value={dealName}
+              onChange={function (v) { setDealName(v); if (saveState) setSaveState(null); }}
+              placeholder="e.g. 412 Oak St"
+              onKeyDown={function (e) { if (e.key === "Enter") handleSave(); }}
+            />
+          )}
+          <Button onClick={handleSave} color="#00ff88">
+            {dealId ? "💾 Update Saved Deal" : "💾 Save Deal"}
+          </Button>
+          {dealId && (
+            <span style={{ fontSize: 10, color: "#555" }}>Editing a saved deal</span>
+          )}
+        </div>
+        {saveState && (
+          <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: saveState.kind === "ok" ? "#00ff88" : "#f87171" }}>
+            {saveState.message}
+          </div>
+        )}
+      </div>
+
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, flex: "1 1 280px" }}>
           <div style={{ fontSize: 11, color: "#f87171", fontWeight: 700, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>Monthly Breakdown</div>
@@ -82,7 +150,20 @@ export default function RentalCalculator() {
             <span style={{ color: "#999" }}>Cash flow</span>
             <span style={{ color: cfColor, fontFamily: "monospace" }}>{fmtMoney(r.monthlyCashFlow, 2)}</span>
           </div>
-          <div style={{ fontSize: 10, color: "#555", marginTop: 8 }}>Loan amount: {fmtMoney(r.loanAmount)} · Down: {fmtMoney(r.downPayment)} · Closing: {fmtMoney(r.closingCosts)} · Rehab: {fmtMoney(r.rehabCosts)}</div>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ fontSize: 11, color: "#818cf8", fontWeight: 700, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>Cash to Close</div>
+            <ExpenseRow label="Down payment" value={fmtMoney(r.downPayment, 2)} />
+            <ExpenseRow label="Closing costs" value={fmtMoney(r.closingCosts, 2)} />
+            <ExpenseRow label={"Points (" + (inputs.points || 0) + "% of loan)"} value={fmtMoney(r.pointsCost, 2)} />
+            <ExpenseRow label="Rehab / repairs" value={fmtMoney(r.rehabCosts, 2)} />
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", fontSize: 13, fontWeight: 800 }}>
+              <span style={{ color: "#999" }}>Total cash invested</span>
+              <span style={{ color: "#818cf8", fontFamily: "monospace" }}>{fmtMoney(r.totalCashInvested, 2)}</span>
+            </div>
+            <div style={{ fontSize: 10, color: "#555", marginTop: 8 }}>
+              Loan amount {fmtMoney(r.loanAmount)}. Points are paid upfront, so they raise cash to close without changing the monthly payment.
+            </div>
+          </div>
         </div>
 
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, flex: "1 1 280px" }}>

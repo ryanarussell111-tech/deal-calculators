@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from './App';
 
 test('renders the app header', () => {
@@ -84,6 +84,91 @@ test('fix & flip hides points for conventional financing', () => {
   expect(screen.getByText('Points % of Loan')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Conventional' }));
   expect(screen.queryByText('Points % of Loan')).not.toBeInTheDocument();
+});
+
+describe('points and saved deals', () => {
+  beforeEach(() => { window.localStorage.clear(); });
+
+  test('points field raises cash to close without changing cash flow', async () => {
+    render(<App />);
+    // Defaults: $200k, 20% down -> $160k loan, $46,000 cash to close, $94.02/mo
+    expect(screen.getByText('$46,000')).toBeInTheDocument();
+    // Appears twice: the headline card and the breakdown's cash-flow row
+    expect(screen.getAllByText('$94.02').length).toBeGreaterThan(0);
+
+    // 1 point on a $160k loan = $1,600 more cash to close
+    fireEvent.change(screen.getByLabelText('Points Charged %'), { target: { value: '1' } });
+
+    expect(screen.getByText('$47,600')).toBeInTheDocument();
+    expect(screen.getAllByText('$94.02').length).toBeGreaterThan(0); // monthly unchanged
+    expect(screen.getByText(/Points \(1% of loan\)/)).toBeInTheDocument();
+  });
+
+  test('saving requires a name, then the deal appears in Saved Deals', async () => {
+    render(<App />);
+    // First click with no name prompts for one instead of saving
+    fireEvent.click(screen.getByText('💾 Save Deal'));
+    expect(screen.getByText(/Give this deal a name first/)).toBeInTheDocument();
+
+    const nameField = screen.getByPlaceholderText('e.g. 412 Oak St');
+    fireEvent.change(nameField, { target: { value: '412 Oak St' } });
+    fireEvent.click(screen.getByText('💾 Save Deal'));
+    await waitFor(() => expect(screen.getByText(/Saved/)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('💾 Saved Deals'));
+    await waitFor(() => expect(screen.getByText('412 Oak St')).toBeInTheDocument());
+    // Quick-glance columns come from the stored summary
+    expect(screen.getByText('$94.02')).toBeInTheDocument();
+    expect(screen.getByText('6.63%')).toBeInTheDocument();
+    expect(screen.getByText('Rental Cash Flow')).toBeInTheDocument();
+  });
+
+  test('opening a saved deal loads its inputs back into the calculator', async () => {
+    render(<App />);
+    // Save a deal with a distinctive purchase price
+    fireEvent.change(screen.getByLabelText('Purchase Price $'), { target: { value: '345000' } });
+    fireEvent.click(screen.getByText('💾 Save Deal'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. 412 Oak St'), { target: { value: 'Distinctive' } });
+    fireEvent.click(screen.getByText('💾 Save Deal'));
+    await waitFor(() => expect(screen.getByText(/Saved/)).toBeInTheDocument());
+
+    // Change the form afterwards so we can prove the load actually restores
+    fireEvent.change(screen.getByLabelText('Purchase Price $'), { target: { value: '111111' } });
+
+    fireEvent.click(screen.getByText('💾 Saved Deals'));
+    await waitFor(() => expect(screen.getByText('Distinctive')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Open'));
+
+    await waitFor(() => expect(screen.getByLabelText('Purchase Price $')).toHaveValue(345000));
+    // The loaded deal is now the save target, so the button offers an update
+    expect(screen.getByText('💾 Update Saved Deal')).toBeInTheDocument();
+  });
+
+  test('deleting a saved deal takes two clicks and removes it', async () => {
+    render(<App />);
+    // The name field only appears after the first save attempt
+    fireEvent.click(screen.getByText('💾 Save Deal'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. 412 Oak St'), { target: { value: 'To Delete' } });
+    fireEvent.click(screen.getByText('💾 Save Deal'));
+    await waitFor(() => expect(screen.getByText(/Saved/)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('💾 Saved Deals'));
+    await waitFor(() => expect(screen.getByText('To Delete')).toBeInTheDocument());
+
+    // First click arms the confirm, second click deletes
+    fireEvent.click(screen.getByText('Delete'));
+    expect(screen.getByText('Confirm?')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Confirm?'));
+
+    await waitFor(() => expect(screen.getByText('No saved deals yet')).toBeInTheDocument());
+    expect(screen.queryByText('To Delete')).not.toBeInTheDocument();
+  });
+
+  test('saved deals tab shows an empty state before anything is saved', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByText('💾 Saved Deals'));
+    await waitFor(() => expect(screen.getByText('No saved deals yet')).toBeInTheDocument());
+  });
 });
 
 test('no sourcing / FBA functionality is bundled', () => {

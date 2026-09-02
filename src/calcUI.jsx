@@ -18,6 +18,7 @@ export function Field({ label, value, onChange, suffix, mode, onModeChange }) {
       <div style={{ display: "flex", gap: 4 }}>
         <input
           type="number"
+          aria-label={label}
           value={value}
           onChange={function (e) { onChange(e.target.value); }}
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 10px", color: "#ddd", fontSize: 13, outline: "none", fontFamily: "inherit", width: "100%", minWidth: 0 }}
@@ -105,6 +106,8 @@ export function ExpenseRow({ label, value }) {
 }
 
 // Small hook so each calculator keeps its inputs as strings with a setter-per-key.
+// The third element replaces every input at once (used when loading a saved deal);
+// callers that don't need it can destructure just the first two.
 export function useCalcInputs(defaults) {
   const [inputs, setInputs] = useState(defaults);
   function set(key) {
@@ -112,5 +115,44 @@ export function useCalcInputs(defaults) {
       setInputs(function (prev) { return Object.assign({}, prev, { [key]: val }); });
     };
   }
-  return [inputs, set];
+  function setAll(next) {
+    setInputs(Object.assign({}, defaults, next || {}));
+  }
+  return [inputs, set, setAll];
+}
+
+export function Button({ children, onClick, color, disabled, title }) {
+  const accent = color || "#00ff88";
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      style={{
+        background: disabled ? "rgba(255,255,255,0.04)" : accent + "22",
+        border: "1px solid " + (disabled ? "rgba(255,255,255,0.1)" : accent + "66"),
+        color: disabled ? "#555" : accent,
+        borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700,
+        cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit",
+      }}
+    >{children}</button>
+  );
+}
+
+// Plain text input for non-numeric fields (deal names).
+export function TextField({ label, value, onChange, placeholder, onKeyDown }) {
+  return (
+    <div style={{ flex: 1, minWidth: 180 }}>
+      {label && <div style={{ fontSize: 10, color: "#666", letterSpacing: 1, textTransform: "uppercase", marginBottom: 5 }}>{label}</div>}
+      <input
+        type="text"
+        aria-label={label}
+        value={value}
+        placeholder={placeholder}
+        onChange={function (e) { onChange(e.target.value); }}
+        onKeyDown={onKeyDown}
+        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 10px", color: "#ddd", fontSize: 13, outline: "none", fontFamily: "inherit", width: "100%" }}
+      />
+    </div>
+  );
 }
