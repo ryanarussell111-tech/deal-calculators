@@ -4,6 +4,7 @@ import BrrrrCalculator from "./BrrrrCalculator";
 import HouseHackCalculator from "./HouseHackCalculator";
 import FixAndFlipCalculator from "./FixAndFlipCalculator";
 import SavedDeals from "./SavedDeals";
+import { CALCULATOR_TYPES } from "./calculatorTypes";
 
 const TABS = [
   { key: "rental", label: "🏠 Rental Cash Flow", blurb: "Buy-and-hold cash flow, cap rate, and cash-on-cash return." },
@@ -21,15 +22,23 @@ export default function App() {
   const active = TABS.find(function (t) { return t.key === view; });
 
   function handleOpenDeal(deal) {
-    const type = deal.calculatorType || "rental";
-    // Only the rental calculator supports saving today; ignore anything else
-    // rather than switching to a tab that can't show it.
-    if (type !== "rental") return;
+    const type = deal.calculatorType;
+    // Type keys double as tab keys, so an unknown type means a record this
+    // build can't render — ignore rather than switching to a blank tab.
+    if (!CALCULATOR_TYPES[type]) return;
     setLoadRequest({ deal, nonce: Date.now() });
     setView(type);
   }
 
-  const rentalKey = loadRequest ? "rental-" + loadRequest.deal.id + "-" + loadRequest.nonce : "rental-new";
+  // Only hand a loaded deal to the calculator it belongs to, and key on a
+  // nonce so re-opening the same deal remounts and drops unsaved edits.
+  function dealFor(type) {
+    return loadRequest && loadRequest.deal.calculatorType === type ? loadRequest.deal : undefined;
+  }
+  function keyFor(type) {
+    const d = dealFor(type);
+    return d ? type + "-" + d.id + "-" + loadRequest.nonce : type + "-new";
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a10", color: "#ddd", fontFamily: "system-ui, sans-serif", paddingBottom: 40 }}>
@@ -54,12 +63,10 @@ export default function App() {
       </div>
 
       <div style={{ padding: "0 16px", maxWidth: 1400, margin: "0 auto" }}>
-        {view === "rental" && (
-          <RentalCalculator key={rentalKey} loadedDeal={loadRequest ? loadRequest.deal : undefined} />
-        )}
-        {view === "brrrr" && <BrrrrCalculator />}
-        {view === "househack" && <HouseHackCalculator />}
-        {view === "flip" && <FixAndFlipCalculator />}
+        {view === "rental" && <RentalCalculator key={keyFor("rental")} loadedDeal={dealFor("rental")} />}
+        {view === "brrrr" && <BrrrrCalculator key={keyFor("brrrr")} loadedDeal={dealFor("brrrr")} />}
+        {view === "househack" && <HouseHackCalculator key={keyFor("househack")} loadedDeal={dealFor("househack")} />}
+        {view === "flip" && <FixAndFlipCalculator key={keyFor("flip")} loadedDeal={dealFor("flip")} />}
         {view === "saved" && <SavedDeals onOpen={handleOpenDeal} />}
       </div>
     </div>

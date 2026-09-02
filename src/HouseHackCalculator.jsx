@@ -1,4 +1,5 @@
 import { calculateHouseHack } from "./houseHack";
+import SaveDealBar from "./SaveDealBar";
 import { fmtMoney, fmtPct, Field, Section, Segmented, ResultBox, ExpenseRow, useCalcInputs } from "./calcUI";
 
 const DEFAULTS = {
@@ -24,8 +25,10 @@ const DEFAULTS = {
   maintenanceRate: "8",
 };
 
-export default function HouseHackCalculator() {
-  const [inputs, set] = useCalcInputs(DEFAULTS);
+export default function HouseHackCalculator({ loadedDeal }) {
+  const [inputs, set] = useCalcInputs(
+    loadedDeal ? Object.assign({}, DEFAULTS, loadedDeal.inputs) : DEFAULTS
+  );
 
   const unitCount = Math.max(2, Math.min(4, Number(inputs.numberOfUnits) || 2));
   const unitRents = [];
@@ -98,6 +101,19 @@ export default function HouseHackCalculator() {
         <ResultBox label="Cash to Close" value={fmtMoney(r.totalCashInvested)} color="#818cf8" />
         <ResultBox label="Annual NOI" value={fmtMoney(r.noiAnnual)} color="#aaa" />
       </div>
+      <SaveDealBar
+        calculatorType="househack"
+        inputs={inputs}
+        loadedDeal={loadedDeal}
+        summary={{
+          effectiveHousingCost: r.effectiveHousingCost,
+          monthlySavings: r.monthlySavings,
+          capRate: r.capRate,
+          cashOnCashReturn: r.cashOnCashReturn,
+          totalCashInvested: r.totalCashInvested,
+        }}
+      />
+
       {coveredByTenants && (
         <div style={{ background: "rgba(0,255,136,0.07)", border: "1px solid rgba(0,255,136,0.25)", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#00ff88", fontWeight: 700, marginBottom: 12 }}>
           🎉 Your tenants cover the entire building — you live there for free and keep {fmtMoney(-r.effectiveHousingCost, 2)}/mo.

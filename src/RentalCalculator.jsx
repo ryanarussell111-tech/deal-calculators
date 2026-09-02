@@ -1,7 +1,6 @@
-import { useState } from "react";
 import { calculateRentalCashFlow } from "./rentalCashFlow";
-import { saveDeal } from "./dealStorage";
-import { fmtMoney, fmtPct, Field, Section, ResultBox, ExpenseRow, Button, TextField, useCalcInputs } from "./calcUI";
+import SaveDealBar from "./SaveDealBar";
+import { fmtMoney, fmtPct, Field, Section, ResultBox, ExpenseRow, useCalcInputs } from "./calcUI";
 
 export const RENTAL_DEFAULTS = {
   purchasePrice: "200000",
@@ -22,56 +21,24 @@ export const RENTAL_DEFAULTS = {
   hoaMonthly: "0",
   utilitiesMonthly: "0",
   rentGrowthRate: "3",
+  useGrowth: "no",
 };
 
 /**
  * @param {object} [props.loadedDeal]  a saved deal to open, or undefined for a blank form
  * @param {function} [props.onSaved]   called after a successful save
  */
-export default function RentalCalculator({ loadedDeal, onSaved }) {
+export default function RentalCalculator({ loadedDeal }) {
   const [inputs, set] = useCalcInputs(
     loadedDeal ? Object.assign({}, RENTAL_DEFAULTS, loadedDeal.inputs) : RENTAL_DEFAULTS
   );
-  const [useGrowth, setUseGrowth] = useState(false);
-  const [dealName, setDealName] = useState(loadedDeal ? loadedDeal.name : "");
-  const [dealId, setDealId] = useState(loadedDeal ? loadedDeal.id : null);
-  const [saveState, setSaveState] = useState(null); // {kind: "ok"|"error", message}
-  const [namePrompted, setNamePrompted] = useState(false);
+  const useGrowth = inputs.useGrowth === "yes";
+  const setUseGrowth = function (next) { set("useGrowth")(next ? "yes" : "no"); };
 
   const r = calculateRentalCashFlow(Object.assign({}, inputs, { rentGrowthRate: useGrowth ? inputs.rentGrowthRate : 0 }));
   const cfColor = r.monthlyCashFlow >= 0 ? "#00ff88" : "#f87171";
   const year1 = r.projection[0];
   const year5 = r.projection[4];
-
-  async function handleSave() {
-    // Ask for a name before the first save rather than storing "Untitled".
-    if (!dealName.trim()) {
-      setNamePrompted(true);
-      setSaveState({ kind: "error", message: "Give this deal a name first — an address or nickname." });
-      return;
-    }
-    try {
-      const saved = await saveDeal({
-        id: dealId || undefined,
-        name: dealName,
-        calculatorType: "rental",
-        inputs,
-        summary: {
-          monthlyCashFlow: r.monthlyCashFlow,
-          capRate: r.capRate,
-          cashOnCashReturn: r.cashOnCashReturn,
-          totalCashInvested: r.totalCashInvested,
-        },
-      });
-      setDealId(saved.id);
-      setSaveState({ kind: "ok", message: "Saved “" + saved.name + "”" });
-      if (onSaved) onSaved(saved);
-    } catch (err) {
-      setSaveState({ kind: "error", message: err.message || "Could not save this deal" });
-    }
-  }
-
-  const showNameField = namePrompted || !!dealName || !!dealId;
 
   return (
     <div style={{ padding: "16px 0" }}>
@@ -109,30 +76,17 @@ export default function RentalCalculator({ loadedDeal, onSaved }) {
         <ResultBox label="Annual NOI" value={fmtMoney(r.noiAnnual)} color="#aaa" />
       </div>
 
-      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 14, marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
-          {showNameField && (
-            <TextField
-              label="Deal Name"
-              value={dealName}
-              onChange={function (v) { setDealName(v); if (saveState) setSaveState(null); }}
-              placeholder="e.g. 412 Oak St"
-              onKeyDown={function (e) { if (e.key === "Enter") handleSave(); }}
-            />
-          )}
-          <Button onClick={handleSave} color="#00ff88">
-            {dealId ? "💾 Update Saved Deal" : "💾 Save Deal"}
-          </Button>
-          {dealId && (
-            <span style={{ fontSize: 10, color: "#555" }}>Editing a saved deal</span>
-          )}
-        </div>
-        {saveState && (
-          <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: saveState.kind === "ok" ? "#00ff88" : "#f87171" }}>
-            {saveState.message}
-          </div>
-        )}
-      </div>
+      <SaveDealBar
+        calculatorType="rental"
+        inputs={inputs}
+        loadedDeal={loadedDeal}
+        summary={{
+          monthlyCashFlow: r.monthlyCashFlow,
+          capRate: r.capRate,
+          cashOnCashReturn: r.cashOnCashReturn,
+          totalCashInvested: r.totalCashInvested,
+        }}
+      />
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, flex: "1 1 280px" }}>
@@ -170,7 +124,7 @@ export default function RentalCalculator({ loadedDeal, onSaved }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
             <div style={{ fontSize: 11, color: "#0ea5e9", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Projection</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <button onClick={function () { setUseGrowth(function (g) { return !g; }); }} style={{ background: useGrowth ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.04)", border: "1px solid " + (useGrowth ? "rgba(14,165,233,0.5)" : "rgba(255,255,255,0.1)"), color: useGrowth ? "#0ea5e9" : "#555", borderRadius: 8, padding: "4px 10px", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              <button onClick={function () { setUseGrowth(!useGrowth); }} style={{ background: useGrowth ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.04)", border: "1px solid " + (useGrowth ? "rgba(14,165,233,0.5)" : "rgba(255,255,255,0.1)"), color: useGrowth ? "#0ea5e9" : "#555", borderRadius: 8, padding: "4px 10px", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                 {useGrowth ? "RENT GROWTH ON" : "FLAT RENT"}
               </button>
               {useGrowth && (

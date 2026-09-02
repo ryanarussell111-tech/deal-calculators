@@ -1,4 +1,5 @@
 import { calculateFixAndFlip } from "./fixAndFlip";
+import SaveDealBar from "./SaveDealBar";
 import { fmtMoney, fmtPct, Field, Section, Segmented, ResultBox, ExpenseRow, useCalcInputs } from "./calcUI";
 
 const DEFAULTS = {
@@ -23,8 +24,10 @@ const DEFAULTS = {
   saleClosingCostsMode: "percent",
 };
 
-export default function FixAndFlipCalculator() {
-  const [inputs, set] = useCalcInputs(DEFAULTS);
+export default function FixAndFlipCalculator({ loadedDeal }) {
+  const [inputs, set] = useCalcInputs(
+    loadedDeal ? Object.assign({}, DEFAULTS, loadedDeal.inputs) : DEFAULTS
+  );
 
   const r = calculateFixAndFlip(Object.assign({}, inputs, {
     interestOnly: inputs.interestOnly === "yes",
@@ -88,6 +91,19 @@ export default function FixAndFlipCalculator() {
         <ResultBox label="Breakeven Sale Price" value={fmtMoney(r.breakevenSalePrice)} color="#facc15" />
         <ResultBox label="Profit Margin on ARV" value={fmtPct(r.profitMargin)} color={profitable ? "#00ff88" : "#f87171"} />
       </div>
+
+      <SaveDealBar
+        calculatorType="flip"
+        inputs={inputs}
+        loadedDeal={loadedDeal}
+        summary={{
+          netProfit: r.netProfit,
+          roi: r.roi,
+          totalCashInvested: r.totalCashInvested,
+          breakevenSalePrice: r.breakevenSalePrice,
+          passesSeventyRule: r.passesSeventyRule,
+        }}
+      />
 
       <div style={{ background: r.passesSeventyRule ? "rgba(0,255,136,0.07)" : "rgba(248,113,113,0.07)", border: "1px solid " + (r.passesSeventyRule ? "rgba(0,255,136,0.25)" : "rgba(248,113,113,0.25)"), borderRadius: 12, padding: "12px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <span style={{ background: ruleColor + "22", border: "1.5px solid " + ruleColor, color: ruleColor, borderRadius: 6, padding: "4px 12px", fontSize: 12, fontWeight: 800, letterSpacing: 1 }}>

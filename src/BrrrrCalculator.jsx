@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { calculateBrrrr } from "./brrrr";
+import SaveDealBar from "./SaveDealBar";
 import { fmtMoney, fmtPct, Field, Section, ResultBox, ExpenseRow, useCalcInputs } from "./calcUI";
 
 const DEFAULTS = {
@@ -28,6 +28,7 @@ const DEFAULTS = {
   hoaMonthly: "0",
   utilitiesMonthly: "0",
   rentGrowthRate: "3",
+  useGrowth: "no",
 };
 
 function PhaseLabel({ n, text, color }) {
@@ -39,9 +40,12 @@ function PhaseLabel({ n, text, color }) {
   );
 }
 
-export default function BrrrrCalculator() {
-  const [inputs, set] = useCalcInputs(DEFAULTS);
-  const [useGrowth, setUseGrowth] = useState(false);
+export default function BrrrrCalculator({ loadedDeal }) {
+  const [inputs, set] = useCalcInputs(
+    loadedDeal ? Object.assign({}, DEFAULTS, loadedDeal.inputs) : DEFAULTS
+  );
+  const useGrowth = inputs.useGrowth === "yes";
+  const setUseGrowth = function (next) { set("useGrowth")(next ? "yes" : "no"); };
 
   const r = calculateBrrrr(Object.assign({}, inputs, { rentGrowthRate: useGrowth ? inputs.rentGrowthRate : 0 }));
   const rental = r.rental;
@@ -103,6 +107,19 @@ export default function BrrrrCalculator() {
         <ResultBox label="Equity After Refi" value={fmtMoney(r.equityAfterRefi)} color="#0ea5e9" />
         <ResultBox label="Cap Rate (on ARV)" value={fmtPct(rental.capRate)} color={rental.capRate >= 0.06 ? "#00ff88" : "#facc15"} />
       </div>
+      <SaveDealBar
+        calculatorType="brrrr"
+        inputs={inputs}
+        loadedDeal={loadedDeal}
+        summary={{
+          monthlyCashFlow: rental.monthlyCashFlow,
+          capRate: rental.capRate,
+          cashLeftInDeal: r.cashLeftInDeal,
+          percentCashRecovered: r.percentCashRecovered,
+          cashOnCashReturn: Number.isFinite(r.cashOnCashReturn) ? r.cashOnCashReturn : null,
+        }}
+      />
+
       {infiniteCoC && r.totalCashInvested > 0 && (
         <div style={{ background: "rgba(0,255,136,0.07)", border: "1px solid rgba(0,255,136,0.25)", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#00ff88", fontWeight: 700, marginBottom: 12 }}>
           ♾️ Full BRRRR: the refi returns all invested cash — the remaining cash flow is an infinite return.
@@ -151,7 +168,7 @@ export default function BrrrrCalculator() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "12px 0 6px" }}>
             <span style={{ fontSize: 10, color: "#666", letterSpacing: 1, textTransform: "uppercase" }}>5-Year Projection</span>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <button onClick={function () { setUseGrowth(function (g) { return !g; }); }} style={{ background: useGrowth ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.04)", border: "1px solid " + (useGrowth ? "rgba(14,165,233,0.5)" : "rgba(255,255,255,0.1)"), color: useGrowth ? "#0ea5e9" : "#555", borderRadius: 8, padding: "4px 10px", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              <button onClick={function () { setUseGrowth(!useGrowth); }} style={{ background: useGrowth ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.04)", border: "1px solid " + (useGrowth ? "rgba(14,165,233,0.5)" : "rgba(255,255,255,0.1)"), color: useGrowth ? "#0ea5e9" : "#555", borderRadius: 8, padding: "4px 10px", fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                 {useGrowth ? "RENT GROWTH ON" : "FLAT RENT"}
               </button>
               {useGrowth && (
