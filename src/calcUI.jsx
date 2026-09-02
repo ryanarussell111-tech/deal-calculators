@@ -40,6 +40,43 @@ export function Field({ label, value, onChange, suffix, mode, onModeChange }) {
   );
 }
 
+// Segmented button group for small exclusive choices (unit counts, loan types).
+export function Segmented({ label, options, value, onChange, color }) {
+  const accent = color || "#0ea5e9";
+  return (
+    <div style={{ flex: 1, minWidth: 130 }}>
+      <div style={{ fontSize: 10, color: "#666", letterSpacing: 1, textTransform: "uppercase", marginBottom: 5 }}>{label}</div>
+      <div style={{ display: "flex" }}>
+        {options.map(function (opt, i) {
+          const active = String(value) === String(opt.value);
+          const first = i === 0;
+          const last = i === options.length - 1;
+          // Longhand only — mixing the `border` shorthand with a single-side
+          // override makes React warn and can mis-render across updates.
+          const edge = "1px solid " + (active ? accent + "80" : "rgba(255,255,255,0.1)");
+          return (
+            <button
+              key={opt.value}
+              onClick={function () { onChange(String(opt.value)); }}
+              style={{
+                background: active ? accent + "33" : "rgba(255,255,255,0.04)",
+                borderTop: edge,
+                borderBottom: edge,
+                borderRight: edge,
+                borderLeft: first ? edge : "none",
+                color: active ? accent : "#555",
+                padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                fontFamily: "inherit", flex: 1,
+                borderRadius: first ? "8px 0 0 8px" : last ? "0 8px 8px 0" : 0,
+              }}
+            >{opt.label}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function Section({ title, color, children }) {
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>

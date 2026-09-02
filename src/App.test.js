@@ -54,6 +54,38 @@ test('house hacking unit count adds rent rows', () => {
   expect(screen.queryAllByText('Unit 4').length).toBeGreaterThan(0);
 });
 
+test('fix & flip tab shows the calculator with computed outputs', () => {
+  render(<App />);
+  fireEvent.click(screen.getByText('🔨 Fix & Flip'));
+  expect(screen.getByText('Net Profit')).toBeInTheDocument();
+  expect(screen.getByText('Return on Invested Cash')).toBeInTheDocument();
+  expect(screen.getByText('Breakeven Sale Price')).toBeInTheDocument();
+  // Defaults are the hand-verified flip: $31,500 profit on $80,400 cash
+  expect(screen.getAllByText('$31,500.00').length).toBeGreaterThan(0);
+  expect(screen.getByText('39.18%')).toBeInTheDocument();
+  expect(screen.getAllByText('$80,400').length).toBeGreaterThan(0);
+});
+
+test('fix & flip flags the 70% rule and reacts to price changes', () => {
+  render(<App />);
+  fireEvent.click(screen.getByText('🔨 Fix & Flip'));
+  // Default $150k purchase exceeds the $137k max offer
+  expect(screen.getByText('70% RULE — FAIL')).toBeInTheDocument();
+
+  // Drop the purchase price below the threshold and the badge flips
+  const priceInput = screen.getByDisplayValue('150000');
+  fireEvent.change(priceInput, { target: { value: '130000' } });
+  expect(screen.getByText('70% RULE — PASS')).toBeInTheDocument();
+});
+
+test('fix & flip hides points for conventional financing', () => {
+  render(<App />);
+  fireEvent.click(screen.getByText('🔨 Fix & Flip'));
+  expect(screen.getByText('Points % of Loan')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Conventional' }));
+  expect(screen.queryByText('Points % of Loan')).not.toBeInTheDocument();
+});
+
 test('no sourcing / FBA functionality is bundled', () => {
   render(<App />);
   expect(screen.queryByText(/Sourcing/i)).not.toBeInTheDocument();

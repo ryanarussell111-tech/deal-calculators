@@ -1,5 +1,5 @@
 import { calculateHouseHack } from "./houseHack";
-import { fmtMoney, fmtPct, Field, Section, ResultBox, ExpenseRow, useCalcInputs } from "./calcUI";
+import { fmtMoney, fmtPct, Field, Section, Segmented, ResultBox, ExpenseRow, useCalcInputs } from "./calcUI";
 
 const DEFAULTS = {
   purchasePrice: "300000",
@@ -23,41 +23,6 @@ const DEFAULTS = {
   managementRate: "0",
   maintenanceRate: "8",
 };
-
-function Segmented({ label, options, value, onChange }) {
-  return (
-    <div style={{ flex: 1, minWidth: 130 }}>
-      <div style={{ fontSize: 10, color: "#666", letterSpacing: 1, textTransform: "uppercase", marginBottom: 5 }}>{label}</div>
-      <div style={{ display: "flex" }}>
-        {options.map(function (opt, i) {
-          const active = String(value) === String(opt.value);
-          const first = i === 0;
-          const last = i === options.length - 1;
-          // Longhand only — mixing the `border` shorthand with a single-side
-          // override makes React warn and can mis-render across updates.
-          const edge = "1px solid " + (active ? "rgba(14,165,233,0.5)" : "rgba(255,255,255,0.1)");
-          return (
-            <button
-              key={opt.value}
-              onClick={function () { onChange(String(opt.value)); }}
-              style={{
-                background: active ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.04)",
-                borderTop: edge,
-                borderBottom: edge,
-                borderRight: edge,
-                borderLeft: first ? edge : "none",
-                color: active ? "#0ea5e9" : "#555",
-                padding: "8px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                fontFamily: "inherit", flex: 1,
-                borderRadius: first ? "8px 0 0 8px" : last ? "0 8px 8px 0" : 0,
-              }}
-            >{opt.label}</button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 export default function HouseHackCalculator() {
   const [inputs, set] = useCalcInputs(DEFAULTS);
